@@ -14,6 +14,13 @@ public:
 public:
 	void Update(Vector3 target);
 
+	//Getter/Setter
+	Vector3 GetTargetOffset()	{return targetOffset_;}
+	Vector3 GetCameraOffset()	{return cameraOffset_;}
+
+	void SetTargetOffset(Vector3 value)	{targetOffset_ = value;}
+	void SetCameraOffset(Vector3 value)	{cameraOffset_ = value;}
+
 private:
 	void Rot();
 	void Move();
@@ -28,7 +35,7 @@ private:
 	float speed_ = 0.01f;
 	Vector2 RotMinMax_ = {-45.f,45.f};
 
-public:
-	Vector3 offset_ = {0,0,-10};
+	Vector3 targetOffset_ = {0,0.4f,7.5f};
+	Vector3 cameraOffset_ = {0,10,-20};
 };
 

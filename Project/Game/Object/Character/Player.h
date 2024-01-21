@@ -1,15 +1,21 @@
 #pragma once
 #include <optional>
-
 #include "../Geometry/ObjModel.h"
+#include "FollowCamera.h"
 
 class Player : public ObjModel
 {
 private:
 	enum class Behavior{
 		kRoot,
+		kDush,
 		kAttack,
-		Jump,
+		kJump,
+	};
+
+	struct CameraChangeValue{
+		Vector3 cameraOffset;
+		Vector3 targetOffset;
 	};
 
 public:
@@ -17,15 +23,16 @@ public:
 
 public:
 	void Update()override;
-	void Draw(Camera* camera) override;
+	void Draw(FollowCamera* camera);
 
 	void OnCollision(const CollisionInfo& info) override;
-
-	//Getter/Setter
 
 private:
 	void BehaviorRootInitialize();
 	void BehaviorRootUpdate();
+
+	void BehaviorDushInitialize();
+	void BehaviorDushUpdate();
 
 	void BehaviorAttackInitialize();
 	void BehaviorAttackUpdate();
@@ -34,18 +41,37 @@ private:
 	void BehaviorJumpUpdate();
 
 
-	void Input();
+	void RootInput();
+	void DushInput();
+	
+	
 	void Move();
+	void Dush();
 	void Attack();
 	void Jump();
 
-private:
-	const float kGravityAcceleration = 0.05f;
 
-	const float kMoveVelocity = 0.1f;
-	const float kJumpVelocity = 1.0f;
+	void ApplyGlobalVariablesInitialize() override;
+	void ApplyGlobalVariablesUpdate() override;
 
 private:
+	//ダッシュ時のカメラ遷移
+	bool isCameraChange = false;
+	CameraChangeValue normalValue;
+	CameraChangeValue dushValue = {{5,5,-15},{0,0,9}};
+	
+	const float CameraChangeMaxSecond = 2;
+	float cameraChangeFrame = 0;
+
+	//各遷移の値
+	float kMoveVelocity = 0.1f;
+	float kDushVelocity = 0.1f;
+	float kGravityAcceleration = 0.05f;
+	float kJumpVelocity = 1.0f;
+
+private:
+	FollowCamera* camera = nullptr;
+
 	//状態
 	Behavior behavior_ = Behavior::kRoot;
 	//次の状態
@@ -58,8 +84,5 @@ private:
 
 	//速度
 	Vector3 velocity_ = {};
-
-	//パーティクル
-	//ParticleObject* particle_ = nullptr;
 };
 

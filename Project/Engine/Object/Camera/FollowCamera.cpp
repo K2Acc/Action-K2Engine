@@ -31,7 +31,7 @@ FollowCamera::FollowCamera(Transform transform)
 
 void FollowCamera::Update(Vector3 target)
 {
-	target_ = target;
+	target_ = target + Multiplication(targetOffset_, GetRotMatrix());
 
 	Rot();
 	Move();
@@ -57,12 +57,12 @@ void FollowCamera::Rot()
 	matRot *= MakeRotationXMatrix(rotation.x);
 	matRot *= MakeRotationYMatrix(rotation.y);
 
-	offset_ = Multiplication(offset_, matRot);
+	cameraOffset_ = Multiplication(cameraOffset_, matRot);
 }
 
 void FollowCamera::Move()
 {
-	translate = target_ + offset_;
+	translate = target_ + cameraOffset_;
 }
 
 void FollowCamera::ApplyGlobalVariablesInitialize()
@@ -74,8 +74,7 @@ void FollowCamera::ApplyGlobalVariablesInitialize()
 	GlobalVariables::GetInstance()->CreateGroup(name);
 	globalVariables->AddItem(name, "0.aspect", aspect_);
 	globalVariables->AddItem(name, "1.RotSp", speed_);
-	globalVariables->AddItem(name, "2.offSet", offset_);
-	globalVariables->AddItem(name, "3.RotX Min,Max", RotMinMax_);
+	globalVariables->AddItem(name, "2.RotX Min,Max", RotMinMax_);
 #endif // _DEBUG
 }
 
@@ -89,6 +88,5 @@ void FollowCamera::ApplyGlobalVariablesUpdate()
 #endif // _DEBUG
 	aspect_ = globalVariables->GetFloatValue(name, "0.aspect");
 	speed_ = globalVariables->GetFloatValue(name, "1.RotSp");
-	offset_ = globalVariables->GetVector3Value(name, "2.offSet");
-	RotMinMax_ = globalVariables->GetVector2Value(name, "3.RotX Min,Max");
+	RotMinMax_ = globalVariables->GetVector2Value(name, "2.RotX Min,Max");
 }

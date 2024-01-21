@@ -1,0 +1,8 @@
+{
+    "Player": {
+        "0.moveVelocity": 0.5,
+        "1.dushVelocity": 1.0,
+        "2.jumpVelocity": 1.5,
+        "3.gravityVelocity": 0.10000000149011612
+    }
+}

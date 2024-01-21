@@ -47,6 +47,15 @@ Vector4 &Vector4::operator*=(float s)
 	return *this;
 }
 
+Vector4 &Vector4::operator*=(const Vector4 &v)
+{
+	x *= v.x;
+	y *= v.y;
+	z *= v.z;
+	w *= v.w;
+	return *this;
+}
+
 Vector4 &Vector4::operator/=(float s)
 {
 	x /= s;
@@ -77,6 +86,12 @@ const Vector4 operator*(const Vector4 &v, float s)
 const Vector4 operator*(float s, const Vector4 &v)
 {
 	return v * s;
+}
+
+const Vector4 operator*(const Vector4 &v, const Vector4 &v1)
+{
+	Vector4 temp(v);
+	return temp *= v1;
 }
 
 const Vector4 operator/(const Vector4 &v, float s)

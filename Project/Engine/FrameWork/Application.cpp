@@ -25,9 +25,9 @@ void Application::Initialize()
 	levelLoader_->Load("levelSample");
 	levelLoader_->Initialize();
 
-	//player_ = std::make_unique<Player>("cube");
-	//player_.get()->translate = {0,0,0};
-	//player_.get()->scale = {0.8f,0.8f,0.8f};
+	player_ = std::make_unique<Player>("Human");
+	player_.get()->translate = {0,0,0};
+	player_.get()->scale = {1.0f,1.0f,1.0f};
 	//collisionsManager->AddCollider(player_->GetCollider());
 
 	//box_ = ObjModel::Create("fence", {{0,0,0},{0,0,0},{1,1,1}}, BlendSetting::kBlendModeNone);
@@ -50,8 +50,8 @@ void Application::Update()
 {
 	//シーンオブジェクト
 	levelLoader_->Update();
-	/*player_->Update();
-	box_->Update();
+	player_->Update();
+	/*box_->Update();
 
 	sp_->Update();
 
@@ -61,7 +61,7 @@ void Application::Update()
 	emitter_->Add(emitterPos_);
 	emitter_->Update();*/
 
-	camera_->Update({0,0,0});
+	camera_->Update(player_->translate);
 	light_->Update();
 
 	CollisionCheck();
@@ -71,8 +71,8 @@ void Application::GeometryDraw()
 {
 	//シーンオブジェクト
 	levelLoader_->Draw(camera_);
-	/*player_->Draw(camera_);
-	box_->Draw(camera_);*/
+	player_->Draw(camera_);
+	//box_->Draw(camera_);
 
 	gpu_->Draw(camera_);
 }

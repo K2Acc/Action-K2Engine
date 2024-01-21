@@ -47,8 +47,8 @@ private:
 
 	//シーンオブジェクト
 	std::unique_ptr<LevelLoader> levelLoader_;
-	/*std::unique_ptr<Player> player_;
-	ObjModel* box_ = nullptr;
+	std::unique_ptr<Player> player_;
+	/*ObjModel* box_ = nullptr;
 
 	ParticleObject* particle_ = nullptr;
 	Vector3 particlePos_ = {-5,0,0};

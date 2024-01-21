@@ -6,9 +6,10 @@
 #include "Easing.h"
 #include "BlendSetting.h"
 
-#include <imgui.h>
-
 #include "Geometry/SphereCollider.h"
+
+#include <imgui.h>
+#include "GlobalVariables.h"
 
 Player::Player(std::string filePath, Transform transform):
 	ObjModel(filePath, transform, BlendSetting::kBlendModeNormal)
@@ -19,19 +20,15 @@ Player::Player(std::string filePath, Transform transform):
 
 	weapon_ = ObjModel::Create("weapon");
 
-	//particle_ = ParticleObject::Create();
-
 	collider_ = SphereCollider::Create(this);
 	collider_->SetShapeType(COLLISIONSHAPE_SPHERE);
+
+	ApplyGlobalVariablesInitialize();
 }
 
 void Player::Update()
 {
-#ifdef _DEBUG
-	ImGui::Text("Player - Pos X: %f, Y: %f, Z:%f", translate.x,translate.y,translate.z);
-	ImGui::Text("Player - Rot X: %f, Y: %f, Z:%f", rotation.x,rotation.y,rotation.z);
-	ImGui::ColorEdit4("Player - Color", &color_.x);
-#endif // _DEBUG
+	ApplyGlobalVariablesUpdate();
 
 	//状態遷移
 	if(behaviorRequest_){
@@ -43,11 +40,15 @@ void Player::Update()
 			BehaviorRootInitialize();
 			break;
 
+		case Behavior::kDush:
+			BehaviorDushInitialize();
+			break;
+
 		case Behavior::kAttack:
 			BehaviorAttackInitialize();
 			break;
 
-		case Behavior::Jump:
+		case Behavior::kJump:
 			BehaviorJumpInitialize();
 			break;
 		}
@@ -57,27 +58,30 @@ void Player::Update()
 	//状態更新
 	switch (behavior_)
 	{
-	case Player::Behavior::kRoot:
+	case Behavior::kRoot:
 	default:
 		BehaviorRootUpdate();
 		break;
 
-	case Player::Behavior::kAttack:
+	case Behavior::kDush:
+		BehaviorDushUpdate();
+		break;
+
+	case Behavior::kAttack:
 		BehaviorAttackUpdate();
 		break;
 
-	case Player::Behavior::Jump:
+	case Behavior::kJump:
 		BehaviorJumpUpdate();
 		break;
 	}
-
-	//particle_->Add(translate);
-	//particle_->Update();
 	ObjModel::Update();
 }
 
-void Player::Draw(Camera* camera)
+void Player::Draw(FollowCamera* camera)
 {
+	this->camera = camera;
+
 	switch (behavior_)
 	{
 	case Player::Behavior::kAttack:
@@ -85,7 +89,6 @@ void Player::Draw(Camera* camera)
 		break;
 	}
 
-	//particle_->Draw(camera);
 	ObjModel::Draw(camera);
 }
 
@@ -94,15 +97,38 @@ void Player::OnCollision(const CollisionInfo &info)
 	WindowsApp::Log("Hit\n");
 }
 
+
 void Player::BehaviorRootInitialize()
 {
-	velocity_ = {};
 }
 void Player::BehaviorRootUpdate()
 {
-	Input();
+	RootInput();
 
 	Move();
+}
+
+void Player::BehaviorDushInitialize()
+{
+	isCameraChange = true;
+	cameraChangeFrame = 0;
+	//カメラ情報の保存
+	normalValue.cameraOffset = camera->GetCameraOffset();
+	normalValue.targetOffset = camera->GetTargetOffset();
+}
+void Player::BehaviorDushUpdate()
+{
+	DushInput();
+
+	Dush();
+
+	//カメラ遷移
+	if(!isCameraChange) return;
+
+	if(cameraChangeFrame >= CameraChangeMaxSecond) isCameraChange = false;
+	Time_OneWay(cameraChangeFrame, CameraChangeMaxSecond);
+	camera->SetCameraOffset((Vector3)Easing_Point2_Linear(camera->GetCameraOffset(), dushValue.cameraOffset, cameraChangeFrame));
+	camera->SetTargetOffset((Vector3)Easing_Point2_Linear(camera->GetTargetOffset(), dushValue.targetOffset, cameraChangeFrame));
 }
 
 void Player::BehaviorAttackInitialize()
@@ -125,15 +151,26 @@ void Player::BehaviorJumpUpdate()
 }
 
 
-void Player::Input()
+void Player::RootInput()
 {
 	if(Input::GetInstance()->PadButtonTrigger(XINPUT_GAMEPAD_A)){
-		behaviorRequest_ = Behavior::Jump;
+		behaviorRequest_ = Behavior::kJump;
 	}
 	else if(Input::GetInstance()->PadButtonTrigger(XINPUT_GAMEPAD_B)){
 		behaviorRequest_ = Behavior::kAttack;
 	}
+	else if(Input::GetInstance()->PadButtonPush(XINPUT_GAMEPAD_RIGHT_SHOULDER)){
+		behaviorRequest_ = Behavior::kDush;
+	}
 }
+
+void Player::DushInput()
+{
+	if(!Input::GetInstance()->PadButtonPush(XINPUT_GAMEPAD_RIGHT_SHOULDER)){
+		behaviorRequest_ = Behavior::kRoot;
+	}
+}
+
 
 void Player::Move()
 {
@@ -146,8 +183,7 @@ void Player::Move()
 		0.0f,
 		Input::GetInstance()->PadLStick().y
 	};
-	velocity_ = velocity_.normalize();
-
+	
 	if(velocity_.length() > threshold){
 		isMoving = true;
 	}
@@ -159,15 +195,44 @@ void Player::Move()
 	//カメラの方向へと動く
 	Matrix4x4 matRot;
 	matRot = MakeIdentityMatrix();
-	//matRot *= MakeRotationZMatrix(FollowCamera::GetInstance()->rotation.z);
-	//matRot *= MakeRotationXMatrix(FollowCamera::GetInstance()->rotation.x);
 	matRot *= MakeRotationYMatrix(FollowCamera::GetInstance()->rotation.y);
 	velocity_ = Multiplication(velocity_, matRot);
 
 	//回転
 	rotation.y = std::atan2(velocity_.x, velocity_.z);
-	//Vector3 velocityXZ = Vector3{move.x, 0, move.z};
-	//rotation.x = std::atan2(-move.y, velocityXZ.length());
+
+	//移動
+	translate += velocity_;
+}
+
+void Player::Dush()
+{
+	if(!Input::GetInstance()->GetIsPadConnect()) return;
+	const float threshold = 0.7f;
+	bool isMoving = false;
+
+	velocity_ = {
+		Input::GetInstance()->PadLStick().x,
+		0.0f,
+		Input::GetInstance()->PadLStick().y
+	};
+	
+	if(velocity_.length() > threshold){
+		isMoving = true;
+	}
+
+	if(!isMoving) return;
+
+	velocity_ *= kDushVelocity;
+
+	//カメラの方向へと動く
+	Matrix4x4 matRot;
+	matRot = MakeIdentityMatrix();
+	matRot *= MakeRotationYMatrix(FollowCamera::GetInstance()->rotation.y);
+	velocity_ = Multiplication(velocity_, matRot);
+
+	//回転
+	rotation.y = std::atan2(velocity_.x, velocity_.z);
 
 	//移動
 	translate += velocity_;
@@ -196,4 +261,34 @@ void Player::Jump()
 		translate.y = 0.0f;
 		behaviorRequest_ = Behavior::kRoot;
 	}
+}
+
+
+void Player::ApplyGlobalVariablesInitialize()
+{
+#ifdef _DEBUG
+	GlobalVariables* globalVariables = GlobalVariables::GetInstance();
+	const char* name = "Player";
+	//グループを追加
+	GlobalVariables::GetInstance()->CreateGroup(name);
+	globalVariables->AddItem(name, "0.moveVelocity", kMoveVelocity);
+	globalVariables->AddItem(name, "1.dushVelocity", kDushVelocity);
+	globalVariables->AddItem(name, "2.jumpVelocity", kJumpVelocity);
+	globalVariables->AddItem(name, "3.gravityVelocity", kGravityAcceleration);
+#endif // _DEBUG
+}
+
+void Player::ApplyGlobalVariablesUpdate()
+{
+	GlobalVariables* globalVariables = GlobalVariables::GetInstance();
+	const char* name = "Player";
+#ifdef _DEBUG
+	ImGui::Text("Player - Pos X: %f, Y: %f, Z:%f", translate.x,translate.y,translate.z);
+	ImGui::Text("Player - Rot X: %f, Y: %f, Z:%f", rotation.x,rotation.y,rotation.z);
+	ImGui::ColorEdit4("Player - Color", &color_.x);
+#endif // _DEBUG
+	kMoveVelocity = globalVariables->GetFloatValue(name, "0.moveVelocity");
+	kDushVelocity = globalVariables->GetFloatValue(name, "1.dushVelocity");
+	kJumpVelocity = globalVariables->GetFloatValue(name, "2.jumpVelocity");
+	kGravityAcceleration = globalVariables->GetFloatValue(name, "3.gravityVelocity");
 }
